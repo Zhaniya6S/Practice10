@@ -1,6 +1,7 @@
 import pygame
 import sys
 import random
+import os
 from pygame.locals import *
 
 pygame.init()
@@ -9,6 +10,10 @@ SCREEN_WIDTH = 400
 SCREEN_HEIGHT = 600
 FPS = 60
 INITIAL_SPEED = 5
+
+# Границы дороги (левая и правая полосы)
+ROAD_LEFT = 50      # Левая граница дороги (где начинается асфальт)
+ROAD_RIGHT = 350    # Правая граница дороги (где заканчивается асфальт)
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -39,83 +44,91 @@ invincible_frames = 0
 class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        try:
-            self.image = pygame.image.load("Player_small.png")
-            self.image = pygame.transform.scale(self.image, (160, 95))
-            print("Загружен Player, размер 160x95")
-        except:
-            self.image = pygame.Surface((160, 95), pygame.SRCALPHA)
-            self.create_wide_car()
-            print("Создана широкая машина 160x95")
+        
+        # Огромный размер игрока (не меняем)
+        player_width = 220
+        player_height = 150
+        
+        # Пытаемся загрузить картинку игрока
+        image_path = os.path.join(os.path.dirname(__file__), "Player.png")
+        if os.path.exists(image_path):
+            self.original_image = pygame.image.load(image_path)
+            self.image = pygame.transform.scale(self.original_image, (player_width, player_height))
+            print(f"Загружен Player.png, размер {player_width}x{player_height}")
+        else:
+            print(f"Файл не найден: {image_path}")
+            self.image = pygame.Surface((player_width, player_height), pygame.SRCALPHA)
+            self.image.fill((0, 180, 0))
         
         self.rect = self.image.get_rect()
         self.rect.centerx = SCREEN_WIDTH // 2
         self.rect.bottom = SCREEN_HEIGHT - 20
-        self.speed = 7
-        self.collision_rect = pygame.Rect(0, 0, 40, 30)
-    
-    def create_wide_car(self):
-        pygame.draw.rect(self.image, (0, 180, 0), (15, 18, 130, 62))
-        pygame.draw.rect(self.image, (0, 210, 0), (15, 18, 130, 32))
-        pygame.draw.rect(self.image, (0, 150, 0), (45, 10, 70, 22))
-        pygame.draw.rect(self.image, (135, 206, 235), (50, 14, 14, 14))
-        pygame.draw.rect(self.image, (135, 206, 235), (68, 14, 14, 14))
-        pygame.draw.rect(self.image, (135, 206, 235), (86, 14, 14, 14))
-        pygame.draw.rect(self.image, (135, 206, 235), (104, 14, 14, 14))
-        pygame.draw.circle(self.image, (30, 30, 30), (28, 78), 16)
-        pygame.draw.circle(self.image, (30, 30, 30), (132, 78), 16)
-        pygame.draw.circle(self.image, (80, 80, 80), (28, 78), 10)
-        pygame.draw.circle(self.image, (80, 80, 80), (132, 78), 10)
-        pygame.draw.circle(self.image, (255, 255, 100), (148, 28), 8)
-        pygame.draw.circle(self.image, (255, 255, 100), (148, 48), 8)
-        pygame.draw.circle(self.image, (255, 255, 150), (148, 28), 4)
-        pygame.draw.circle(self.image, (255, 255, 150), (148, 48), 4)
-        pygame.draw.circle(self.image, (255, 50, 50), (12, 28), 7)
-        pygame.draw.circle(self.image, (255, 50, 50), (12, 48), 7)
-        pygame.draw.line(self.image, GOLD, (25, 45), (135, 45), 5)
-        pygame.draw.line(self.image, GOLD, (25, 55), (135, 55), 5)
-        pygame.draw.rect(self.image, WHITE, (65, 65, 30, 12))
-        font = pygame.font.SysFont("Arial", 12, bold=True)
-        num = font.render("V8", True, BLACK)
-        self.image.blit(num, (72, 67))
+        self.speed = 8
+        
+        # Создаем маску для точного столкновения
+        self.mask = pygame.mask.from_surface(self.image)
     
     def move(self):
         keys = pygame.key.get_pressed()
-        if keys[K_LEFT] and self.rect.left > -30:
-            self.rect.x -= self.speed
-        if keys[K_RIGHT] and self.rect.right < SCREEN_WIDTH + 30:
-            self.rect.x += self.speed
         
-        if self.rect.left < -30:
-            self.rect.left = -30
-        if self.rect.right > SCREEN_WIDTH + 30:
-            self.rect.right = SCREEN_WIDTH + 30
+        # Движение с проверкой границ дороги
+        if keys[K_LEFT]:
+            new_x = self.rect.x - self.speed
+            # Проверяем, не выходит ли машина за левую границу дороги
+            if new_x >= ROAD_LEFT - (self.rect.width // 2):
+                self.rect.x = new_x
         
-        self.collision_rect.center = self.rect.center
+        if keys[K_RIGHT]:
+            new_x = self.rect.x + self.speed
+            # Проверяем, не выходит ли машина за правую границу дороги
+            if new_x + self.rect.width <= ROAD_RIGHT + (self.rect.width // 2):
+                self.rect.x = new_x
+        
+        # Дополнительная проверка границ (безопасность)
+        min_x = ROAD_LEFT - (self.rect.width // 2)
+        max_x = ROAD_RIGHT - (self.rect.width // 2)
+        
+        if self.rect.x < min_x:
+            self.rect.x = min_x
+        if self.rect.x > max_x:
+            self.rect.x = max_x
     
     def draw(self, surface):
         surface.blit(self.image, self.rect)
         if debug_mode:
-            pygame.draw.rect(surface, RED, self.rect, 2)
-            pygame.draw.rect(surface, (255, 255, 0), self.collision_rect, 2)
+            pygame.draw.rect(surface, RED, self.rect, 3)
+            # Рисуем границы дороги для отладки
+            pygame.draw.line(surface, (255, 255, 0), (ROAD_LEFT, 0), (ROAD_LEFT, SCREEN_HEIGHT), 2)
+            pygame.draw.line(surface, (255, 255, 0), (ROAD_RIGHT, 0), (ROAD_RIGHT, SCREEN_HEIGHT), 2)
 
 class Enemy(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        try:
-            self.image = pygame.image.load("Enemy_small.png")
-            self.image = pygame.transform.scale(self.image, (55, 55))
-        except:
-            self.image = pygame.Surface((55, 55))
+        
+        enemy_width = 80
+        enemy_height = 100
+        
+        image_path = os.path.join(os.path.dirname(__file__), "Enemy.png")
+        if os.path.exists(image_path):
+            self.image = pygame.image.load(image_path)
+            self.image = pygame.transform.scale(self.image, (enemy_width, enemy_height))
+            print("Загружен Enemy.png")
+        else:
+            print(f"Файл не найден: {image_path}")
+            self.image = pygame.Surface((enemy_width, enemy_height))
             self.image.fill(RED)
-            pygame.draw.rect(self.image, DARK_GRAY, (10, 10, 35, 35))
         
         self.rect = self.image.get_rect()
         self.reset_position()
-        self.collision_rect = pygame.Rect(0, 0, 25, 25)
+        self.mask = pygame.mask.from_surface(self.image)
     
     def reset_position(self):
-        self.rect.x = random.randint(20, SCREEN_WIDTH - 20 - self.rect.width)
+        # Враг появляется только в пределах дороги
+        min_x = ROAD_LEFT
+        max_x = ROAD_RIGHT - self.rect.width
+        if max_x < min_x:
+            max_x = min_x
+        self.rect.x = random.randint(min_x, max_x)
         self.rect.y = -self.rect.height - random.randint(100, 400)
     
     def move(self):
@@ -124,31 +137,37 @@ class Enemy(pygame.sprite.Sprite):
         if self.rect.top > SCREEN_HEIGHT:
             score += 1
             self.reset_position()
-        self.collision_rect.center = self.rect.center
     
     def draw(self, surface):
         surface.blit(self.image, self.rect)
         if debug_mode:
-            pygame.draw.rect(surface, BLUE, self.rect, 2)
-            pygame.draw.rect(surface, (255, 100, 100), self.collision_rect, 2)
+            pygame.draw.rect(surface, BLUE, self.rect, 3)
 
 class Coin(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
-        try:
-            self.image = pygame.image.load("Coin_small.png")
-            self.image = pygame.transform.scale(self.image, (25, 25))
-        except:
-            self.image = pygame.Surface((22, 22))
+        image_path = os.path.join(os.path.dirname(__file__), "Coin.png")
+        if os.path.exists(image_path):
+            self.image = pygame.image.load(image_path)
+            self.image = pygame.transform.scale(self.image, (45, 45))
+            print("Загружен Coin.png")
+        else:
+            print(f"Файл не найден: {image_path}")
+            self.image = pygame.Surface((45, 45))
             self.image.fill(YELLOW)
-            pygame.draw.circle(self.image, GOLD, (11, 11), 9)
+            pygame.draw.circle(self.image, GOLD, (22, 22), 20)
         
         self.rect = self.image.get_rect()
         self.value = 1
         self.reset_position()
     
     def reset_position(self):
-        self.rect.x = random.randint(15, SCREEN_WIDTH - 15)
+        # Монета появляется только в пределах дороги
+        min_x = ROAD_LEFT
+        max_x = ROAD_RIGHT - self.rect.width
+        if max_x < min_x:
+            max_x = min_x
+        self.rect.x = random.randint(min_x, max_x)
         self.rect.y = random.randint(-500, -50)
     
     def move(self):
@@ -163,25 +182,32 @@ class Coin(pygame.sprite.Sprite):
 
 class Background:
     def __init__(self):
-        try:
-            self.image = pygame.image.load("AnimatedStreet.png")
-            self.image = pygame.transform.scale(self.image, (SCREEN_WIDTH, SCREEN_HEIGHT))
-        except:
-            self.image = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
-            self.create_road()
-        
+        self.image = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
+        self.create_road()
         self.y1 = 0
         self.y2 = -SCREEN_HEIGHT
         self.speed = 3
     
     def create_road(self):
-        self.image.fill((50, 50, 60))
-        for y in range(0, SCREEN_HEIGHT, 50):
-            pygame.draw.rect(self.image, (255, 255, 200), (SCREEN_WIDTH//2 - 5, y, 10, 30))
-        pygame.draw.rect(self.image, DARK_GRAY, (0, 0, 40, SCREEN_HEIGHT))
-        pygame.draw.rect(self.image, DARK_GRAY, (SCREEN_WIDTH-40, 0, 40, SCREEN_HEIGHT))
-        pygame.draw.line(self.image, LIGHT_GRAY, (40, 0), (40, SCREEN_HEIGHT), 2)
-        pygame.draw.line(self.image, LIGHT_GRAY, (SCREEN_WIDTH-40, 0), (SCREEN_WIDTH-40, SCREEN_HEIGHT), 2)
+        self.image.fill((40, 40, 50))
+        
+        # Бордюры / обочина
+        pygame.draw.rect(self.image, DARK_GRAY, (0, 0, ROAD_LEFT, SCREEN_HEIGHT))
+        pygame.draw.rect(self.image, DARK_GRAY, (ROAD_RIGHT, 0, SCREEN_WIDTH - ROAD_RIGHT, SCREEN_HEIGHT))
+        
+        # Белые линии по краям дороги
+        pygame.draw.line(self.image, LIGHT_GRAY, (ROAD_LEFT, 0), (ROAD_LEFT, SCREEN_HEIGHT), 3)
+        pygame.draw.line(self.image, LIGHT_GRAY, (ROAD_RIGHT, 0), (ROAD_RIGHT, SCREEN_HEIGHT), 3)
+        
+        # Разметка дороги (прерывистая линия посередине)
+        road_center = (ROAD_LEFT + ROAD_RIGHT) // 2
+        for y in range(0, SCREEN_HEIGHT, 40):
+            pygame.draw.rect(self.image, (255, 255, 200), (road_center - 5, y, 10, 25))
+        
+        # Полосы по бокам (для красоты)
+        for y in range(0, SCREEN_HEIGHT, 60):
+            pygame.draw.rect(self.image, (255, 255, 150), (ROAD_LEFT + 20, y, 5, 30))
+            pygame.draw.rect(self.image, (255, 255, 150), (ROAD_RIGHT - 25, y, 5, 30))
     
     def update(self):
         self.y1 += self.speed
@@ -196,7 +222,7 @@ class Background:
         surface.blit(self.image, (0, self.y2))
 
 def draw_ui():
-    stats_surface = pygame.Surface((130, 80))
+    stats_surface = pygame.Surface((160, 100))
     stats_surface.set_alpha(200)
     stats_surface.fill(BLACK)
     screen.blit(stats_surface, (5, 5))
@@ -209,16 +235,16 @@ def draw_ui():
     screen.blit(score_text, (15, 12))
     screen.blit(coins_text, (15, 32))
     screen.blit(level_text, (15, 52))
-    screen.blit(speed_text, (SCREEN_WIDTH - 75, 15))
+    screen.blit(speed_text, (15, 72))
     
     coins_needed = 5 - (coins_collected % 5)
     if coins_needed == 0:
         coins_needed = 5
     progress = (coins_collected % 5) / 5 * 100
-    pygame.draw.rect(screen, DARK_GRAY, (SCREEN_WIDTH - 100, 50, 90, 8))
-    pygame.draw.rect(screen, GOLD, (SCREEN_WIDTH - 100, 50, progress, 8))
-    next_text = font_small.render(f"Next: {coins_needed}", True, WHITE)
-    screen.blit(next_text, (SCREEN_WIDTH - 95, 35))
+    pygame.draw.rect(screen, DARK_GRAY, (SCREEN_WIDTH - 115, 15, 105, 12))
+    pygame.draw.rect(screen, GOLD, (SCREEN_WIDTH - 115, 15, progress * 1.05, 12))
+    next_text = font_small.render(f"Next lvl: {coins_needed}", True, WHITE)
+    screen.blit(next_text, (SCREEN_WIDTH - 110, 30))
 
 def show_game_over():
     overlay = pygame.Surface((SCREEN_WIDTH, SCREEN_HEIGHT))
@@ -263,15 +289,25 @@ def reset_game():
     enemy = Enemy()
     coin = Coin()
     background = Background()
+    print("\n" + "="*40)
+    print("ИГРА ПЕРЕЗАПУЩЕНА!")
+    print("="*40 + "\n")
 
 reset_game()
 running = True
 game_over = False
 
-print("=== RACER GAME ===")
+print("=" * 50)
+print("RACER GAME - ROAD BOUNDARIES")
+print("=" * 50)
 print("Стрелки ← → - движение")
 print("D - режим отладки")
 print("ESC - выход")
+print("=" * 50)
+print("Машина не выезжает за края дороги!")
+print("Любое касание = КОНЕЦ ИГРЫ!")
+print("=" * 50)
+print("\nЗагрузка изображений...")
 
 while running:
     for event in pygame.event.get():
@@ -282,6 +318,10 @@ while running:
                 running = False
             if event.key == K_d:
                 debug_mode = not debug_mode
+                if debug_mode:
+                    print("🔧 Режим отладки ВКЛЮЧЕН - желтые линии = границы дороги")
+                else:
+                    print("🔧 Режим отладки ВЫКЛЮЧЕН")
     
     if not game_over:
         background.update()
@@ -289,22 +329,31 @@ while running:
         enemy.move()
         coin.move()
         
-        if invincible_frames > 0:
-            invincible_frames -= 1
+        # Проверка столкновения (попиксельное)
+        offset_x = enemy.rect.x - player.rect.x
+        offset_y = enemy.rect.y - player.rect.y
         
-        if invincible_frames <= 0:
-            if player.collision_rect.colliderect(enemy.collision_rect):
-                game_over = True
+        if player.mask.overlap(enemy.mask, (offset_x, offset_y)):
+            game_over = True
+            print("\n" + "="*40)
+            print("💥 СТОЛКНОВЕНИЕ! ИГРА ОКОНЧЕНА 💥")
+            print(f"💰 Монет собрано: {coins_collected}")
+            print(f"⭐ Уровень: {level}")
+            print("="*40 + "\n")
         
-        if pygame.sprite.collide_rect(player, coin):
+        # Проверка сбора монеты
+        if player.rect.colliderect(coin.rect):
             coins_collected += 1
             coin.reset_position()
-            invincible_frames = 60
+            invincible_frames = 30
+            print(f"💰 Монета собрана! Всего: {coins_collected}")
             
             if coins_collected % 5 == 0:
                 level += 1
                 speed += 1.5
+                print(f"⭐ УРОВЕНЬ {level}! Скорость: {speed:.1f} ⭐")
         
+        # Отрисовка
         background.draw(screen)
         player.draw(screen)
         enemy.draw(screen)
@@ -313,7 +362,9 @@ while running:
         
         if debug_mode:
             fps_text = font_small.render(f"FPS: {int(clock.get_fps())}", True, WHITE)
-            screen.blit(fps_text, (SCREEN_WIDTH - 70, SCREEN_HEIGHT - 25))
+            screen.blit(fps_text, (SCREEN_WIDTH - 100, SCREEN_HEIGHT - 25))
+            inv_text = font_small.render(f"Inv: {invincible_frames}", True, WHITE)
+            screen.blit(inv_text, (SCREEN_WIDTH - 100, SCREEN_HEIGHT - 45))
     
     else:
         if show_game_over():
