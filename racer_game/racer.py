@@ -11,9 +11,8 @@ SCREEN_HEIGHT = 600
 FPS = 60
 INITIAL_SPEED = 5
 
-# Границы дороги (левая и правая полосы)
-ROAD_LEFT = 50      # Левая граница дороги (где начинается асфальт)
-ROAD_RIGHT = 350    # Правая граница дороги (где заканчивается асфальт)
+ROAD_LEFT = 50
+ROAD_RIGHT = 350
 
 BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
@@ -45,18 +44,16 @@ class Player(pygame.sprite.Sprite):
     def __init__(self):
         super().__init__()
         
-        # Огромный размер игрока (не меняем)
         player_width = 220
         player_height = 150
         
-        # Пытаемся загрузить картинку игрока
         image_path = os.path.join(os.path.dirname(__file__), "Player.png")
         if os.path.exists(image_path):
             self.original_image = pygame.image.load(image_path)
             self.image = pygame.transform.scale(self.original_image, (player_width, player_height))
-            print(f"Загружен Player.png, размер {player_width}x{player_height}")
+            print(f"Player.png loaded, size {player_width}x{player_height}")
         else:
-            print(f"Файл не найден: {image_path}")
+            print(f"File not found: {image_path}")
             self.image = pygame.Surface((player_width, player_height), pygame.SRCALPHA)
             self.image.fill((0, 180, 0))
         
@@ -65,26 +62,21 @@ class Player(pygame.sprite.Sprite):
         self.rect.bottom = SCREEN_HEIGHT - 20
         self.speed = 8
         
-        # Создаем маску для точного столкновения
         self.mask = pygame.mask.from_surface(self.image)
     
     def move(self):
         keys = pygame.key.get_pressed()
         
-        # Движение с проверкой границ дороги
         if keys[K_LEFT]:
             new_x = self.rect.x - self.speed
-            # Проверяем, не выходит ли машина за левую границу дороги
             if new_x >= ROAD_LEFT - (self.rect.width // 2):
                 self.rect.x = new_x
         
         if keys[K_RIGHT]:
             new_x = self.rect.x + self.speed
-            # Проверяем, не выходит ли машина за правую границу дороги
             if new_x + self.rect.width <= ROAD_RIGHT + (self.rect.width // 2):
                 self.rect.x = new_x
         
-        # Дополнительная проверка границ (безопасность)
         min_x = ROAD_LEFT - (self.rect.width // 2)
         max_x = ROAD_RIGHT - (self.rect.width // 2)
         
@@ -97,7 +89,6 @@ class Player(pygame.sprite.Sprite):
         surface.blit(self.image, self.rect)
         if debug_mode:
             pygame.draw.rect(surface, RED, self.rect, 3)
-            # Рисуем границы дороги для отладки
             pygame.draw.line(surface, (255, 255, 0), (ROAD_LEFT, 0), (ROAD_LEFT, SCREEN_HEIGHT), 2)
             pygame.draw.line(surface, (255, 255, 0), (ROAD_RIGHT, 0), (ROAD_RIGHT, SCREEN_HEIGHT), 2)
 
@@ -112,9 +103,9 @@ class Enemy(pygame.sprite.Sprite):
         if os.path.exists(image_path):
             self.image = pygame.image.load(image_path)
             self.image = pygame.transform.scale(self.image, (enemy_width, enemy_height))
-            print("Загружен Enemy.png")
+            print("Enemy.png loaded")
         else:
-            print(f"Файл не найден: {image_path}")
+            print(f"File not found: {image_path}")
             self.image = pygame.Surface((enemy_width, enemy_height))
             self.image.fill(RED)
         
@@ -123,7 +114,6 @@ class Enemy(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.image)
     
     def reset_position(self):
-        # Враг появляется только в пределах дороги
         min_x = ROAD_LEFT
         max_x = ROAD_RIGHT - self.rect.width
         if max_x < min_x:
@@ -150,9 +140,9 @@ class Coin(pygame.sprite.Sprite):
         if os.path.exists(image_path):
             self.image = pygame.image.load(image_path)
             self.image = pygame.transform.scale(self.image, (45, 45))
-            print("Загружен Coin.png")
+            print("Coin.png loaded")
         else:
-            print(f"Файл не найден: {image_path}")
+            print(f"File not found: {image_path}")
             self.image = pygame.Surface((45, 45))
             self.image.fill(YELLOW)
             pygame.draw.circle(self.image, GOLD, (22, 22), 20)
@@ -162,7 +152,6 @@ class Coin(pygame.sprite.Sprite):
         self.reset_position()
     
     def reset_position(self):
-        # Монета появляется только в пределах дороги
         min_x = ROAD_LEFT
         max_x = ROAD_RIGHT - self.rect.width
         if max_x < min_x:
@@ -191,20 +180,16 @@ class Background:
     def create_road(self):
         self.image.fill((40, 40, 50))
         
-        # Бордюры / обочина
         pygame.draw.rect(self.image, DARK_GRAY, (0, 0, ROAD_LEFT, SCREEN_HEIGHT))
         pygame.draw.rect(self.image, DARK_GRAY, (ROAD_RIGHT, 0, SCREEN_WIDTH - ROAD_RIGHT, SCREEN_HEIGHT))
         
-        # Белые линии по краям дороги
         pygame.draw.line(self.image, LIGHT_GRAY, (ROAD_LEFT, 0), (ROAD_LEFT, SCREEN_HEIGHT), 3)
         pygame.draw.line(self.image, LIGHT_GRAY, (ROAD_RIGHT, 0), (ROAD_RIGHT, SCREEN_HEIGHT), 3)
         
-        # Разметка дороги (прерывистая линия посередине)
         road_center = (ROAD_LEFT + ROAD_RIGHT) // 2
         for y in range(0, SCREEN_HEIGHT, 40):
             pygame.draw.rect(self.image, (255, 255, 200), (road_center - 5, y, 10, 25))
         
-        # Полосы по бокам (для красоты)
         for y in range(0, SCREEN_HEIGHT, 60):
             pygame.draw.rect(self.image, (255, 255, 150), (ROAD_LEFT + 20, y, 5, 30))
             pygame.draw.rect(self.image, (255, 255, 150), (ROAD_RIGHT - 25, y, 5, 30))
@@ -290,7 +275,7 @@ def reset_game():
     coin = Coin()
     background = Background()
     print("\n" + "="*40)
-    print("ИГРА ПЕРЕЗАПУЩЕНА!")
+    print("GAME RESTARTED!")
     print("="*40 + "\n")
 
 reset_game()
@@ -300,14 +285,14 @@ game_over = False
 print("=" * 50)
 print("RACER GAME - ROAD BOUNDARIES")
 print("=" * 50)
-print("Стрелки ← → - движение")
-print("D - режим отладки")
-print("ESC - выход")
+print("Arrow keys ← → - movement")
+print("D - debug mode")
+print("ESC - exit")
 print("=" * 50)
-print("Машина не выезжает за края дороги!")
-print("Любое касание = КОНЕЦ ИГРЫ!")
+print("Car does not go beyond road edges!")
+print("Any contact = GAME OVER!")
 print("=" * 50)
-print("\nЗагрузка изображений...")
+print("\nLoading images...")
 
 while running:
     for event in pygame.event.get():
@@ -319,9 +304,9 @@ while running:
             if event.key == K_d:
                 debug_mode = not debug_mode
                 if debug_mode:
-                    print("🔧 Режим отладки ВКЛЮЧЕН - желтые линии = границы дороги")
+                    print("Debug mode ON - yellow lines = road boundaries")
                 else:
-                    print("🔧 Режим отладки ВЫКЛЮЧЕН")
+                    print("Debug mode OFF")
     
     if not game_over:
         background.update()
@@ -329,31 +314,28 @@ while running:
         enemy.move()
         coin.move()
         
-        # Проверка столкновения (попиксельное)
         offset_x = enemy.rect.x - player.rect.x
         offset_y = enemy.rect.y - player.rect.y
         
         if player.mask.overlap(enemy.mask, (offset_x, offset_y)):
             game_over = True
             print("\n" + "="*40)
-            print("💥 СТОЛКНОВЕНИЕ! ИГРА ОКОНЧЕНА 💥")
-            print(f"💰 Монет собрано: {coins_collected}")
-            print(f"⭐ Уровень: {level}")
+            print("COLLISION! GAME OVER")
+            print(f"Coins collected: {coins_collected}")
+            print(f"Level: {level}")
             print("="*40 + "\n")
         
-        # Проверка сбора монеты
         if player.rect.colliderect(coin.rect):
             coins_collected += 1
             coin.reset_position()
             invincible_frames = 30
-            print(f"💰 Монета собрана! Всего: {coins_collected}")
+            print(f"Coin collected! Total: {coins_collected}")
             
             if coins_collected % 5 == 0:
                 level += 1
                 speed += 1.5
-                print(f"⭐ УРОВЕНЬ {level}! Скорость: {speed:.1f} ⭐")
+                print(f"LEVEL {level}! Speed increased to {speed:.1f}")
         
-        # Отрисовка
         background.draw(screen)
         player.draw(screen)
         enemy.draw(screen)

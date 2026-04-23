@@ -194,9 +194,9 @@ running = True
 game_over = False
 
 print("=== SNAKE GAME - EASY VERSION ===")
-print(f"Поле: {GRID_WIDTH} x {GRID_HEIGHT} клеток")
-print("Управление: стрелки ← ↑ ↓ →")
-print("ESC - выход")
+print(f"Grid: {GRID_WIDTH} x {GRID_HEIGHT} cells")
+print("Controls: arrow keys ← ↑ ↓ →")
+print("ESC - exit")
 
 while running:
     for event in pygame.event.get():
